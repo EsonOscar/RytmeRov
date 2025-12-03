@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!--Flash messages and header-->
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col">
+            <h1 class="h3 mb-1">Doctor's Dashboard</h1>
+            <p class="text-muted">Welcome to your dashboard. Here you can manage patient records and view statistics.</p>
+        </div>
+
+        <div class="col-auto">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+
+
+
+{% endblock %} 

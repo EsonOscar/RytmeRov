@@ -36,9 +36,9 @@
                             Home ti Home
                         </a>
                     </li>
-                    {% if current_user.is_authenticated and current_user.is_sysadmin %}
+                    {% if current_user.is_authenticated and current_user.sysadmin %}
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
-                        <a class="nav-link" href="{{ url_for('admin')  }}">
+                        <a class="nav-link" href="{{ url_for('sysadmin')  }}">
                             <i class="bi bi-shield-lock-fill"></i>
                             Adminstrate Organsiation
                         </a>
@@ -56,12 +56,34 @@
                             konkakt os 
                         </a>
                     </li>
+                    {% if current_user.is_authenticated and current_user.sysadmin %}
+                    <li class="nav-item" style="display: inline-block; padding-left: 20px;">
+                        <a class="nav-link" href="{{ url_for('dashboard')  }}">
+                            <i class="bi bi-shield-lock-fill"></i>
+                            SYSADMINS DASHBOARD
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" href="{{ url_for('create_user')  }}">
+                            <i class="bi bi-person-plus-fill"></i>
+                            CREATE USER
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.is_authenticated and current_user.role == "doctor" %}
+                    <li class="nav-item" style="display: inline-block; padding-left: 20px;">
+                        <a class="nav-link" href="{{ url_for('dashboard')  }}">
+                            <i class="bi bi-shield-lock-fill"></i>
+                            DOCTOR'S DASHBOARD
+                        </a>
+                    </li>
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('min_profil')  }}">
                             <i class="bi bi-person-arms-up"></i>
                                 min læge profil
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
                 <form class="d-flex">
                     <span class="navbar-text text-white me-3">

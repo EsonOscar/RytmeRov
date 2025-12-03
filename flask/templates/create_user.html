@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1 class="text-left">Opret ny bruger</h1>
+
+    <form method = "post" action="{{ url_for('create_user')}}" class="row g-3">
+        <div class = "col-md-6">
+            <label for ="username" class="form-label">Brugernavn</label>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Indtast brugernavn" required>
+        </div>
+
+        <div class="col-md-6">
+            <label for ="password" class="form-label">password</label>   
+            <input type="password" class="form-control" id="password" name="password" placeholder="Indtast so password" required>    
+        </div>
+
+        <div class="col-md-6">
+            <label for="name" class="form-label">navn</label>
+            <input type="text" class="form-control" id="name" name="name" placeholder="Indtast navn" required>            
+        </div>
+
+        <div class ="col-md-6">
+            <label for="lastname" class="form-label">efternavn</label>
+            <input type="text" class="form-control" id="lastname" name="lastname" required>
+        </div>
+
+        <div class="col-md-6">
+            <label for="role" class="form-label">rolle</label>
+            <select class="form-select" id="role" name="role" required>
+                <option value="">vælg rolle...</option>
+                <option value="doktor">læge</option>
+                <option value="sysadmin">systemhilter</option>
+            </select>
+        </div>
+
+        <div class="col-12">
+            <button type="submit" class="btn btn-danger">
+                <i class = "bi bi-person-plus-fill"></i>
+                opret bruger du vil jo gerne 
+            </button>
+        </div>
+
+    </form>
+{% endblock %}
