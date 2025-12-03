@@ -40,6 +40,6 @@ with open("ecg.txt", "w") as f:
                 
         #print(f"ADC: {inp} | LO-: {lom} | LO+: {lop} | SDN: {sdn.value()}")
         count += 1
-        sleep(0.004)
+        #sleep(0.004)
 
 print(f"\nMeasurements taken: {count}\nFrequency: {count / 10}")

@@ -10,7 +10,7 @@ adc = []
 lom = []
 lop = []
 
-with open("ecg.txt", "r") as f:
+with open("ecg_best_ever_omg.txt", "r") as f:
     for line in f:
         clean = line.strip()
         """
@@ -36,7 +36,8 @@ t_ms = np.array(t)
 adc = np.array(adc)
 lom = np.array(lom)
 lop = np.array(lop)
-        
+
+
 mask = (lom == 0) & (lop == 0)
 t = t[mask]
 adc = adc[mask]
