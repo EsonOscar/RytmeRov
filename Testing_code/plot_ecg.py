@@ -1,5 +1,6 @@
 from time import sleep
 from matplotlib import pyplot as plt
+from scipy.signal import butter, filtfilt
 import numpy as np
 
 data = []
@@ -31,6 +32,7 @@ with open("ecg.txt", "r") as f:
         lop.append(lopi)
         
 t = np.array(t)
+t_ms = np.array(t)
 adc = np.array(adc)
 lom = np.array(lom)
 lop = np.array(lop)
@@ -43,16 +45,34 @@ t = (t - t[0]) / 1000.0
 
 adc_mean = adc.mean()
 adc_detr = adc - adc_mean
-        
+
+dt = np.diff(t_ms) / 1000.0 
+
+dt_med = np.median(dt)
+fs = 1.0 / dt_med
+
+print("Estimated fs:", fs)
+
 #print(x, y)
+
+# Design a 4th order Butterworth bandpass
+lowcut = 0.5   # Hz
+highcut = 40.0 # Hz
+nyq = 0.5 * fs
+low = lowcut / nyq
+high = highcut / nyq
+
+b, a = butter(N=4, Wn=[low, high], btype='bandpass')
 
 mask_time = (t <= 10) & (t >= 0)
 t_zoom = t[mask_time]
 adc_zoom = adc_detr[mask_time]
 
+ecg_bp = filtfilt(b, a, adc_zoom)
+
 fig, ax = plt.subplots()
 
-ax.plot(t_zoom, adc_zoom)
+ax.plot(t_zoom, ecg_bp)
 plt.ylabel("ADC")
 plt.xlabel("Time (s)")
 
