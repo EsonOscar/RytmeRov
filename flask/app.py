@@ -27,8 +27,7 @@ import psycopg2  # selv psycopg2 bibloiotket, til oprette forbindelse til db, k�
 import os
 # gør man kan bruge row navn i steet for index i db
 from psycopg2.extras import RealDictCursor
-
-
+from test_graf import generate_ecg_graph
 class ProxiedRequestHandler(WSGIRequestHandler):
     """Proxy request handler class, makes sure we can access the real client IP"""
 
@@ -112,7 +111,7 @@ class User(UserMixin):
 
     @property
     # bruges til at tjekke om en bruger er doktor derved returere True dermed give adgang til doktor sider 
-    def doktor(self):
+    def doctor(self):
         return self.role == "doctor"
 
 
@@ -273,7 +272,7 @@ def logout():
 @app.route("/sysadmin")
 @login_required
 def sysadmin():
-    if not current_user.role.sysadmin: # her tjekker vi om brugeren er sysadmin
+    if not current_user.sysadmin: # her tjekker vi om brugeren er sysadmin
         # Forbidden
         abort(403)
     return render_template("sysadmin.html")
@@ -297,8 +296,8 @@ def create_user():
     if not username or not password or not name or not lastname or not role: 
         flash ("vil de være så venlig at udfylde alle felter tak din smukke person", "warning")
         return redirect (url_for ("create_user"))
-    if role not in ["sysadmin", "doktor"]:
-        flash ("rollen skal være sysadmin eller doktor tak" , "warning")
+    if role not in ["sysadmin", "doctor"]:
+        flash ("rollen skal være sysadmin eller doctor tak" , "warning")
         return redirect (url_for ("create_user"))
     
     #vi skal sku da også havde hastet passwordet før vi connecter til vores db bro
@@ -323,22 +322,82 @@ def create_user():
     
     except psycopg2.Error as e: # psycopg2 fejl håndtering for postgres specifikke fejl
         print ("fejl ved oprettelse af bruger i db", e)
-        flash ("der skete en fejl prøvi igen", "danger")
+        flash ("der skete en fejl prøv igen", "danger")
         return redirect (url_for ("create_user"))
     
     finally:
         conn.close() # lukker forbindelsen til db
+
+@app.route("/bruger_administration")
+@login_required
+def bruger_administration():
+    if not current_user.sysadmin:
+        abort (403)
     
+    conn = db_connect()
+    cur = conn.cursor()
+
+    try:
+        cur.execute (
+            """
+            SELECT id, username, name, lastname, role, created, last_login 
+            FROM users
+            ORDER BY id """
+        )
+
+        users = cur.fetchall () # her henter vi alle brugere fra databasen som en liste af dictionaries
+    finally: 
+        conn.close()    
     
+    return render_template ("bruger_administration.html", users=users) # sender brugerne afsted til template 
+
+@app.route("/delete_user/<int:user_id>", methods=["POST"])
+@login_required
+def delete_user(user_id): 
+    if not current_user.sysadmin:
+        abort (403)
+
+    if current_user.id == user_id:
+        flash ("du må ikke slette dig selv dont do it be that guy", "warning")
+        return redirect (url_for ("bruger_administration"))
+    
+    conn= db_connect()
+    cur = conn.cursor()
+
+    try: #vi tjekker self lige først om brugeren eksistere før vi overhovedet kan slette den 
+        cur.execute (""""SELECT id, username, deleted_at  
+        FROM users WHERE id = %s
+        """, (user_id, ))
+        user = cur.fetchone()
+
+        if user is None: # tjekker om brugeren findes 
+            flash ("brugeren er allerede slettet eller eksistere ikke mere", "warning")
+            return redirect (url_for ("bruger_administration"))
+        # hvis den findes så sletter vi den (evil laugh)
+        cur.execute ("delete FROM users WHERE id = %s", (user_id,))
+        conn.commit()
+        flash(f"så er brugeren '{user['username']}' er nu slettet forevigt")
+        return redirect(url_for("bruger_administration"))
+
+    except psycopg2.Error as e:
+        print("fejl angånde sletningen af brugeren skete i databasen")
+        flash("der skete en fejl")
+        return redirect(url_for("bruger_administration"))
+    finally:
+        conn.close()
+
+
 
 
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    print(current_user.role)
     if current_user.role == "sysadmin": # her tjekker vi om brugeren er sysadmin hvis ikke kommer ud ikke ind du 
         return render_template("dashboard.html")
     elif current_user.role == "doctor":
-        return render_template("dashboard_doctor.html")
+        graf_data = generate_ecg_graph()
+        return render_template("dashboard_doctor.html",data=graf_data)
     else:
         # Forbidden
         abort(403)
@@ -347,20 +406,31 @@ def dashboard():
 
 # ################################################# API #################################################### #
 
-@app.route("/api/hello", methods=["GET"])
-@login_required
-def api_hello():
-    return jsonify({"message": f"Hello {current_user.username}!"})
-
-
+@app.route("/api/data_test", methods=["POST"])
+def data_test():
+    print("\nESP32 Connection: data_test API endpoint hit")
+    data = request.get_data(as_text=True)
+    if data:
+        print(data, "\n")
+        #data = data.strip().split("\n")
+        
+        #for i in range(len(data)):
+           # data[i] = data[i].split(",")
+        print(data, "\n")
+        
+        with open("recv_data.txt", "w") as f:
+            f.write(str(data))
+        
+        return (jsonify({"Success": True}), 200)
+    else:
+        return (jsonify({"Success": False}))
 
 # ################################################## CONFIG #################################################### #
 """
  This is only used when running the app locally,
- gunicorn is used in production and ignores this. Config, app runs locally on port 8000. 
+ gunicorn is used in production and ignores this. 
+ Config, app runs locally on port 8000. 
  NGINX proxies outisde requests to this port, and sends th eapps response back to the client.
  """
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
-
-

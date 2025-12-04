@@ -37,4 +37,31 @@
         .catch(err => document.getElementById('api-data').innerHTML = `<p>Error: ${err}</p>`);
     </script>
 
-{% endblock %}
+
+<!--API message-->
+
+<button onclick="markAsRead({ message_id })" class="btn btn-sm btn-primary">
+    Mark as read
+</button>
+
+<script>
+    function markAsRead(id) {
+        fetch('/api/message?msg_id=${id}', {
+            method: "POST",
+            credentials: "same-origin"
+        })
+    .then(res => res.json())
+    .then(data => {
+        if (data.Success) {
+            alert("Wuhuu, read!");
+            location.reload();
+        } 
+        else {
+            alert("Fejllll: " + data.Message);
+        }
+    })
+    .catch(err => alert("Error: " + err));
+    }
+</script>
+
+{% endblock %} 

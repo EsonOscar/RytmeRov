@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %} Mine patineter {% endblock %}
+
+{% block content %}
+
+<div class = "container py-4">
+    <h1 class = "mb-4">Find patienter</h1>
+
+<!-- Flash beskeder -->
+    {% with messaged = get_flashed_messages(with_categories=true) %}
+        {% if messaged %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Søg formular-->
+    <from method = "post" class = "mb-4">
+        <div class = "mb-3">
+            <label for = "cpr" class = "form-label">CPR-nummer</label>
+            <input
+                type = "text"
+                class = "form-control"
+                id = "cpr"
+                name = "cpr"
+                placeholder = "xxxxxx-xxxx"
+                required
+            >
+        </div>
+        <button type = "submit" class = "btn btn-primary">Søg patient</button>
+    </from>
+
+    <!--Resultat-->
+    {% if patient %}
+    <h2>Patient fundet</h2>
+    <ul class="list-gruop">
+        <li class="list-group-item">
+            <strong>Navn:</strong> {{ patient.name}}
+        </li>
+        <li class="list-group-item">
+            <strong>CPR:</strong>
+            {{ patient.cpr }} {# evt. masker, se note nedenfor #}
+        </li>
+        {% if patinet.note %}
+        <li class="list-group-item">
+            <strong>Noter</strong> {{ patient.note }}
+        </li>
+        {% endif %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}
