@@ -44,7 +44,7 @@ class ProxiedRequestHandler(WSGIRequestHandler):
 app = Flask(
     __name__,
     static_folder="static",
-    static_url_path="",
+    static_url_path="/home/3semprojekt/RytmeRov/flask/static",
 )
 
 # vi sætter en hemmelig nøgle som bare super
@@ -365,9 +365,9 @@ def delete_user(user_id):
     cur = conn.cursor()
 
     try: #vi tjekker self lige først om brugeren eksistere før vi overhovedet kan slette den 
-        cur.execute (""""SELECT id, username, deleted_at  
+        cur.execute ("""SELECT id, username, deleted_at  
         FROM users WHERE id = %s
-        """, (user_id, ))
+        """, (user_id, )),
         user = cur.fetchone()
 
         if user is None: # tjekker om brugeren findes 
@@ -411,16 +411,77 @@ def data_test():
     print("\nESP32 Connection: data_test API endpoint hit")
     data = request.get_data(as_text=True)
     if data:
-        print(data, "\n")
+        #print(data, "\n")
         #data = data.strip().split("\n")
         
         #for i in range(len(data)):
            # data[i] = data[i].split(",")
-        print(data, "\n")
+        print("Data recieved!")
+        #print(data, "\n")
+            
+        key = os.getenv("ENC_KEY")
+        fer = Fernet(key.encode())
+        if not key:
+            print("Error loading encryption key from environment, redirecting...")
+            return (jsonify({"Success": False}))
+        else:
+            print("Encryption key successfully loaded!")
+            
+        cpr = data.strip().split("\n")[0]
+        print(cpr)
         
-        with open("recv_data.txt", "w") as f:
+        try:
+            conn = db_connect()
+            cur = conn.cursor()
+            
+            cur.execute("""
+                        SELECT cpr_hash FROM patients
+                        """)
+            db_cpr = cur.fetchall()
+            
+            if len(db_cpr) != 0:
+                for i in range(len(db_cpr)):
+                    check = check_password_hash(db_cpr[i], cpr)
+                    if check == True:
+                        break
+                    else:
+                        pass
+            else:
+                check = False
+                    
+            print(check)
+            print(db_cpr)
+            
+            if not check:
+                enc_cpr = fer.encrypt(cpr.encode()).decode()
+                cpr_hash = generate_password_hash(cpr)
+                #print(enc_cpr, "\n", cpr_hash)
+                cur.execute(
+                    """
+                    INSERT INTO patients (cpr, cpr_hash) VALUES (%s, %s)
+                    """, (enc_cpr, cpr_hash)
+                )
+                conn.commit()
+                print("New data inserted into DB.")
+            
+            
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            cur.close()
+            conn.close()
+        
+        cpr = None
+        
+        file_name = Fernet.generate_key().decode()[:-1]
+        
+        enc_data = fer.encrypt(data.encode())
+        #print(enc_data)
+        with open(f"ecg/{file_name}.csv", "w") as f:
+            f.write(str(enc_data.decode()))
+        
+        with open("recv_data.csv", "w") as f:
             f.write(str(data))
-        
         return (jsonify({"Success": True}), 200)
     else:
         return (jsonify({"Success": False}))

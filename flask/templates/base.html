@@ -17,7 +17,7 @@
             }
         </style>
         <title>RytmeRov</title>
-        <link rel="icon" href="{{ url_for('static', filename= 'logo.png' )  }}" type="image/x-icon">
+        <link rel="icon" href="{{ url_for('static', filename= 'logo.png' )  }}"
 
     </head>
     <body class="d-flex flex-column min-vh-100">
@@ -25,7 +25,7 @@
             <div class="container-fluid">
                 <a class="navbar-brand" href="{{ url_for('index') }}">
                     <img src="{{ url_for('static', filename= 'logo.png')}}" alt="" width="30 " height="30" class="d-inline-block align-text-top">
-                    Rytmerov hvalerne på tur
+                    RytmeRov
                 </a>
 
                {% if current_user.is_authenticated %} 
@@ -33,27 +33,27 @@
                     <li class="nav-item" style="display: inline-block;">
                         <a class="nav-link" href="{{ url_for('index')  }}">
                             <i class="bi bi-house-fill"></i>
-                            Home ti Home
+                            Home
                         </a>
                     </li>
                     {% if current_user.is_authenticated and current_user.sysadmin %}
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('sysadmin')  }}">
                             <i class="bi bi-shield-lock-fill"></i>
-                            Adminstrate Organsiation
+                            Hjem 
                         </a>
                     </li>
                     {% endif %}
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('teamet') }}">
                             <i class="bi bi-person-arms-up"></i>
-                            mød holdet bag 
+                            Mød holdet bag 
                         </a>
                     </li>
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('kontakt')  }}">
                             <i class="bi bi-telephone-fill"></i>
-                            konkakt os 
+                            Kontakt os 
                         </a>
                     </li>
                     {% if current_user.is_authenticated and current_user.sysadmin %}
@@ -68,24 +68,23 @@
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('dashboard')  }}">
                             <i class="bi bi-shield-lock-fill"></i>
-                            DOCTOR'S DASHBOARD
+                            Dashboard
                         </a>
                     </li>
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('min_profil')  }}">
                             <i class="bi bi-person-arms-up"></i>
-                                min læge profil
+                                Profil
                         </a>
                     </li>
                     {% endif %}
                 </ul>
                 <form class="d-flex">
                     <span class="navbar-text text-white me-3">
-                        logged in as {{ current_user.username }}
-                        wlecome so, {{ current_user.username }}
+                        Pænt Goddag, {{ current_user.username }}
                     </span>
                     <a class="btn btn-outline-light" href="{{ url_for('logout')  }}">
-                        logout so 
+                        logout 
                         <i class="bi bi-box-arrow-in-right"></i>
                     </a>
                 </form>
@@ -94,25 +93,25 @@
                     <li class="nav-item" style="display: inline-block;">
                         <a class="nav-link" href="{{ url_for('index')  }}">
                             <i class="bi bi-house-fill"></i>
-                            Home ti Home
+                            Hjem
                         </a>
                     </li>
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('teamet') }}">
                             <i class="bi bi-person-arms-up"></i>
-                            mød holdet bag 
+                            Mød holdet bag 
                         </a>
                     </li>
                     <li class="nav-item" style="display: inline-block; padding-left: 20px;">
                         <a class="nav-link" href="{{ url_for('kontakt')  }}">
                             <i class="bi bi-telephone-fill"></i>
-                            konkakt os 
+                            Kontakt os 
                         </a>
                     </li>
                 </ul>
                 <form class="d-flex">
                     <a class="btn btn-outline-light" href="{{ url_for('login')  }}">
-                        login so 
+                        login 
                         <i class="bi bi-box-arrow-in-right"></i>
                     </a>
                 </form>
@@ -126,7 +125,7 @@
         </main>
 
         <footer class="mt-4 p-4 text-white text-center mt-auto" style="margin-top: 30px; background-color: #dc3545">
-            RytmeRov et sted for fisting af mødre eller noget &copy; 2025
+            Hvalfangerne &copy; 2025
         </footer>
     </body>                    
         
