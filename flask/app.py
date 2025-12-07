@@ -24,6 +24,8 @@ from werkzeug.serving import WSGIRequestHandler
 from cryptography.fernet import Fernet
 from datetime import datetime, timezone
 import psycopg2  # selv psycopg2 bibloiotket, til oprette forbindelse til db, kører sql kommandoer osv
+import hashlib # This and hmac is for generating deterministic hashes, for saving CPRs
+import hmac
 import os
 # gør man kan bruge row navn i steet for index i db
 from psycopg2.extras import RealDictCursor
@@ -78,9 +80,12 @@ def db_connect():
         port=os.getenv("DB_PORT"),
         cursor_factory=RealDictCursor,
     )
+    # Not good to have this here, prints every time the DB is accessed
+    """
     print(
         "du er bare inde din flotte lille fæøreske eller svenske eller somaliske eller danske eller hvad du nu er "
     )
+    """
     return conn
 
 
@@ -406,8 +411,10 @@ def dashboard():
 
 # ################################################# API #################################################### #
 
+# REMEMBER TO MOVE MOST OF THESE FUNCTIONS INTO A SEPARATE FILE OSCAR
 @app.route("/api/data_test", methods=["POST"])
 def data_test():
+    timestamp = str(datetime.now(timezone.utc))[:-13]
     print("\nESP32 Connection: data_test API endpoint hit")
     data = request.get_data(as_text=True)
     if data:
@@ -423,55 +430,60 @@ def data_test():
         fer = Fernet(key.encode())
         if not key:
             print("Error loading encryption key from environment, redirecting...")
-            return (jsonify({"Success": False}))
+            return (jsonify({"Success": False,
+                             "Reason": "Encryption key not found."}))
         else:
             print("Encryption key successfully loaded!")
             
         cpr = data.strip().split("\n")[0]
         print(cpr)
         
+        pepper = os.environ.get("CPR_PEPPER")
+        enc_cpr = fer.encrypt(cpr.encode()).decode()
+        cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
+        print(cpr_hash)
+        
+        pat_id = None
+        
         try:
             conn = db_connect()
             cur = conn.cursor()
             
-            cur.execute("""
-                        SELECT cpr_hash FROM patients
-                        """)
-            db_cpr = cur.fetchall()
+            cur.execute("SELECT id FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+            pat_id = cur.fetchone()
+            if pat_id:
+                pat_id = dict(pat_id)
             
-            if len(db_cpr) != 0:
-                for i in range(len(db_cpr)):
-                    check = check_password_hash(db_cpr[i], cpr)
-                    if check == True:
-                        break
-                    else:
-                        pass
-            else:
-                check = False
-                    
-            print(check)
-            print(db_cpr)
+            print(pat_id)
             
-            if not check:
-                enc_cpr = fer.encrypt(cpr.encode()).decode()
-                cpr_hash = generate_password_hash(cpr)
-                #print(enc_cpr, "\n", cpr_hash)
-                cur.execute(
-                    """
-                    INSERT INTO patients (cpr, cpr_hash) VALUES (%s, %s)
-                    """, (enc_cpr, cpr_hash)
-                )
+            if not pat_id:
+                cur.execute("""
+                            INSERT INTO patients (cpr, cpr_hash) VALUES (%s, %s)
+                            """,
+                            (enc_cpr, cpr_hash))
+
                 conn.commit()
-                print("New data inserted into DB.")
+                
+                # Get newly created ID yo
+                cur.execute("SELECT id FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+                pat_id = cur.fetchone()
+                if pat_id:
+                    pat_id = dict(pat_id)
+                
+                print("Patient not found in DB, new entry created.")
+                print(f"New patient ID: {pat_id.get("id")}")
             
+            else:
+                print(f"Patient found in DB, ID: {pat_id.get("id")}")
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error when getting patient ID: {e}")
         finally:
             cur.close()
             conn.close()
         
         cpr = None
+        
         
         file_name = Fernet.generate_key().decode()[:-1]
         
@@ -479,6 +491,25 @@ def data_test():
         #print(enc_data)
         with open(f"ecg/{file_name}.csv", "w") as f:
             f.write(str(enc_data.decode()))
+        
+        # insert patient ID and filename in ecg table
+        try:
+            conn = db_connect()
+            cur = conn.cursor()
+            
+            # UPDATE AFIB WHEN LOGIC IS THERE TO LOOK FOR IT
+            cur.execute("""
+                        INSERT INTO ekg (patient_id, ekg, afib, timestamp) 
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (pat_id.get("id"), file_name, False, timestamp))
+            conn.commit()
+            print("ECG data inserted into DB.")
+        except Exception as e:
+            print(f"Error when inserting ECG data. Error: {e}")
+        finally:
+            cur.close()
+            conn.close()
         
         with open("recv_data.csv", "w") as f:
             f.write(str(data))
