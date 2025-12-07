@@ -101,6 +101,11 @@ def generate_ecg_graph():
     buf = BytesIO()
     fig.savefig(buf, format="png")
     
+    
+    with open("clean_recv_data.csv", "w") as f:
+        for i in range(len(t_zoom)):
+            f.write(f"{t_zoom[i]},{ecg_bp[i]}\n")
+    
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return data
 

@@ -27,6 +27,7 @@ import psycopg2  # selv psycopg2 bibloiotket, til oprette forbindelse til db, k√
 import hashlib # This and hmac is for generating deterministic hashes, for saving CPRs
 import hmac
 import os
+import ecg
 # g√∏r man kan bruge row navn i steet for index i db
 from psycopg2.extras import RealDictCursor
 from test_graf import generate_ecg_graph
@@ -513,6 +514,18 @@ def data_test():
         
         with open("recv_data.csv", "w") as f:
             f.write(str(data))
+        
+        result = ecg.analyze_ecg("recv_data.csv")
+        
+        print("\n========================================================================")
+        print("\nAnalyzed data:")
+        print("Found beats:", result.get("beats"))
+        print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
+        print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
+        print("RR intervals standard deviation:", result.get("rr_std"))
+        print("Thank the Lord Oscar Ericson for his genius math skills, amen.\n")
+        print("========================================================================\n")    
+        
         return (jsonify({"Success": True}), 200)
     else:
         return (jsonify({"Success": False}))
