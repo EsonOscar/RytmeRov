@@ -42,8 +42,8 @@
                 <td>{{user.name }}</td>
                 <td>{{ user.lastname}}</td>
                 <td>{{ user.role}}</td>
-                <td>{{ user.created}}</td> 
-                <td>{{ user.last_login}}</td>
+                <td>{{ user.created[:19].replace('T', ' ')}}</td> 
+                <td>{{ user.last_login[:19].replace('T', ' ')}}</td>
 
                 <td>
                     <form method="post" action ="{{ url_for('delete_user', user_id=user.id)}}" style="display:inline;">

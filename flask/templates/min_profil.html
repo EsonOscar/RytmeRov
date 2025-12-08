@@ -1,6 +1,138 @@
 {% extends "base.html" %}
 
 {% block content %} 
-<h1>Min profil</h1>
-<p>Velkommen til din personlige profilside. hvis du i tvivl er du læge</p>
+<div class="container py-4">
+    <h1>Patienter</h1>
+    <p>Velkommen.</p>
+
+    <!-- Flash Messages -->
+    <div class="col-auto">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Søge felt -->
+    <div class="my-4">
+        <label for="patientSearch" class="form-label"><strong>Søg efter CPR-nummer</strong></label>
+        <div class="input-group mb-3">
+            <input
+                type="text"
+                class="form-control"
+                id="patientSearch"
+                name="patient_search"
+                placeholder="xxxxxx-xxxx"
+                inputmode="numeric"
+                pattern="[0-9\-]*"
+            >
+            <button type="button" class="btn btn-primary" id="searchBtn">Søg</button>
+        </div>
+        <small class="form-text text-muted">Kun tal og bindestreg tilladt.</small>
+    </div>
+
+    <!-- Search Results Container -->
+    <div id="searchResults" class="mt-4"></div>
+</div>
+
+<script>
+    const searchInput = document.getElementById('patientSearch');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout;
+
+    // Bindestreg automatisk indsættes efter 6 cifre
+    searchInput.addEventListener('input', function(e) {
+        // fjerner alle ikke tal karakterer
+        let value = this.value.replace(/[^0-9\-]/g, '');
+        
+        // fjerner eksisterende bindestreger for at undgå dubletter
+        let digitsOnly = value.replace(/\-/g, '');
+        
+        // kun 6 cifre tilladt før bindesteg
+        if (digitsOnly.length > 6) {
+            value = digitsOnly.substring(0, 6) + '-' + digitsOnly.substring(6, 10);
+        } else {
+            value = digitsOnly;
+        }
+        
+        this.value = value;
+    });
+
+    // Søg på knanp
+    searchBtn.addEventListener('click', performSearch);
+
+    // Søg på enter nøgle
+    searchInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        } else {
+            // Ryd den forrige timeout og indstil en ny for afvist søgning
+            clearTimeout(searchTimeout);
+            if (this.value.trim().length >= 2) {
+                searchTimeout = setTimeout(performSearch, 300);
+            } else if (this.value.trim().length === 0) {
+                searchResults.innerHTML = '';
+            }
+        }
+    });
+
+    function performSearch() {
+        const searchTerm = searchInput.value.trim();
+        
+        if (searchTerm.length < 2) {
+            searchResults.innerHTML = '<div class="alert alert-info">Skriv mindst 2 tegn for at søge</div>';
+            return;
+        }
+
+        searchResults.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Søger...</span></div></div>';
+
+        // kald API endpoint
+        fetch(`/api/search_patients?query=${encodeURIComponent(searchTerm)}`)
+            .then(response => {
+                if (!response.ok) 
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    displayResults(data.patients, data.count);
+                } else {
+                    searchResults.innerHTML = `<div class="alert alert-warning">Fejl: ${data.message || 'Kunne ikke søge'}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                searchResults.innerHTML = `<div class="alert alert-danger">Fejl ved søgning: ${error.message}</div>`;
+            });
+    }
+
+    function displayResults(patients, count) {
+        if (patients.length === 0) {
+            searchResults.innerHTML = '<div class="alert alert-info">Ingen patienter fundet</div>';
+            return;
+        }
+
+        let html = `<h4>Søgeresultater (<strong>${count}</strong> fundet)</h4>`;
+        html += '<div class="list-group">';
+
+        patients.forEach((patient, index) => {
+            html += `
+                <div class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <h6 class="mb-1">Patient #${patient.id}</h6>
+                        <small class="text-muted">ID: ${patient.id}</small>
+                    </div>
+                    ${patient.name ? `<p class="mb-1"><strong>Navn:</strong> ${escapeHtml(patient.name)}</p>` : ''}
+                </div>
+            `;
+        });
+    }
+</script>
+
 {% endblock %}

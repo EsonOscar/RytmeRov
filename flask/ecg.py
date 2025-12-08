@@ -140,18 +140,18 @@ def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
     #print("Number of peaks found: ", len(r_indices))
     #print(r_indices)
     
-    return r_indices
+    return r_indices, noise_level
 
 
 # Final put together version, with data like HR, intervals etc. pretty cool good job Oscar
-def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=10):
+def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=9):
     t, adc = filter_raw_ecg("recv_data.csv")
     
     if len(t) == 0:
         print("No values in the selected dataset")
         return None
 
-    r_indices = detect_r_peaks(t, adc, rf_sec, thresh_factor)
+    r_indices, noise_level = detect_r_peaks(t, adc, rf_sec, thresh_factor)
     beats = len(r_indices)
     
     if beats < 2:
@@ -200,7 +200,8 @@ def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=10):
         "rr_mean": rr_mean,
         "rr_std": rr_std,
         "hr_mean": hr_mean,
-        "hr_per_interval": hr_per_interval
+        "hr_per_interval": hr_per_interval,
+        "noise": noise_level
     }
 
 if __name__ == "__main__":
@@ -218,6 +219,7 @@ if __name__ == "__main__":
     print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
     print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
     print("RR intervals standard deviation:", result.get("rr_std"))
+    print("Noise level:", result.get("noise"))
     print("Thank the Lord Oscar Ericson for his genius math skills, amen.")
     
     

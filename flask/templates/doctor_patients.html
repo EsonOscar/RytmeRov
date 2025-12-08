@@ -20,20 +20,34 @@
     {% endwith %}
 
     <!-- Søg formular-->
-    <from method = "post" class = "mb-4">
-        <div class = "mb-3">
-            <label for = "cpr" class = "form-label">CPR-nummer</label>
+    <form method="post" class="mb-4">
+        <div class="mb-3">
+            <label for="search" class="form-label">Søg efter patient</label>
+            <div class="input-group mb-3">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="search"
+                    name="search"
+                    placeholder="Søg efter navn eller CPR..."
+                    aria-label="Søg efter patient"
+                >
+                <button type="submit" class="btn btn-primary">Søg</button>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="cpr" class="form-label">CPR-nummer (præcis søgning)</label>
             <input
-                type = "text"
-                class = "form-control"
-                id = "cpr"
-                name = "cpr"
-                placeholder = "xxxxxx-xxxx"
-                required
+                type="text"
+                class="form-control"
+                id="cpr"
+                name="cpr"
+                placeholder="xxxxxx-xxxx"
             >
         </div>
-        <button type = "submit" class = "btn btn-primary">Søg patient</button>
-    </from>
+        <button type="submit" class="btn btn-primary">Søg patient</button>
+    </form>
 
     <!--Resultat-->
     {% if patient %}
@@ -55,3 +69,4 @@
     {% endif %}
 </div>
 {% endblock %}
+

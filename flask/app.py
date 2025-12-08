@@ -131,7 +131,7 @@ def load_user(user_id):
     cur = conn.cursor()  # opretter en cursor til at eksekvere sql kommandoer
     try:
         # kommando for at hente brugere baseret på id 
-        cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+        cur.execute("SELECT * FROM users WHERE id = %s AND deleted_at IS NULL", (user_id,))
         # henter den første række fra resultatet af kommandoen og kommer ud i dictionary form
         row = cur.fetchone()
     except Exception as e:
@@ -206,7 +206,7 @@ def login():
     try:
         cur.execute(
             # sql kommandoet for at finde bruger i databasen baseret på username %S er en placeholder
-            "select * FROM users Where username = %s",
+            "select * FROM users Where username = %s AND deleted_at IS NULL",
             (username,),
         )
         # tager den række som matcher brugernavnet ud af databasen gemmer i dict form 
@@ -348,6 +348,7 @@ def bruger_administration():
             """
             SELECT id, username, name, lastname, role, created, last_login 
             FROM users
+            WHERE deleted_at IS NULL
             ORDER BY id """
         )
 
@@ -356,7 +357,6 @@ def bruger_administration():
         conn.close()    
     
     return render_template ("bruger_administration.html", users=users) # sender brugerne afsted til template 
-
 @app.route("/delete_user/<int:user_id>", methods=["POST"])
 @login_required
 def delete_user(user_id): 
@@ -373,16 +373,23 @@ def delete_user(user_id):
     try: #vi tjekker self lige først om brugeren eksistere før vi overhovedet kan slette den 
         cur.execute ("""SELECT id, username, deleted_at  
         FROM users WHERE id = %s
-        """, (user_id, )),
+        """, (user_id, ))
         user = cur.fetchone()
-
+        
+        
         if user is None: # tjekker om brugeren findes 
             flash ("brugeren er allerede slettet eller eksistere ikke mere", "warning")
             return redirect (url_for ("bruger_administration"))
+
+        if user["deleted_at"] is not None:
+            flash("brugeren er alerede markeret som slettet", "warning")
+            return redirect(url_for("bruger_administration"))
+        
         # hvis den findes så sletter vi den (evil laugh)
-        cur.execute ("delete FROM users WHERE id = %s", (user_id,))
+        cur.execute ("UPDATE users SET deleted_at = NOW() WHERE id = %s", (user_id,))
+
         conn.commit()
-        flash(f"så er brugeren '{user['username']}' er nu slettet forevigt")
+        flash(f"så er brugeren '{user['username']}' er nu slettet", "success")
         return redirect(url_for("bruger_administration"))
 
     except psycopg2.Error as e:
@@ -399,6 +406,7 @@ def delete_user(user_id):
 @login_required
 def dashboard():
     print(current_user.role)
+    
     if current_user.role == "sysadmin": # her tjekker vi om brugeren er sysadmin hvis ikke kommer ud ikke ind du 
         return render_template("dashboard.html")
     elif current_user.role == "doctor":
@@ -523,6 +531,7 @@ def data_test():
         print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
         print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
         print("RR intervals standard deviation:", result.get("rr_std"))
+        print("Noise level:", result.get("noise"))
         print("Thank the Lord Oscar Ericson for his genius math skills, amen.\n")
         print("========================================================================\n")    
         
