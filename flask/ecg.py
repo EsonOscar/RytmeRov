@@ -220,7 +220,7 @@ if __name__ == "__main__":
     print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
     print("RR intervals standard deviation:", result.get("rr_std"))
     print("Noise level:", result.get("noise"))
-    print("Thank the Lord Oscar Ericson for his genius math skills, amen.")
+    print("Thank the fucking Lord Oscar Ericson for his genius math skills, amen.")
     
     
     
