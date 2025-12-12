@@ -158,6 +158,13 @@ def load_user(user_id):
 def index():
     return render_template("index.html")
 
+@app.route("/warnings")
+def warnings():
+    if not current_user.doctor: # her tjekker vi om brugeren er sysadmin
+    # Forbidden
+        abort(403)
+    return render_template("warnings.html")
+
 
 @app.route("/min_profil")
 def min_profil():
@@ -449,6 +456,7 @@ def data_test():
         
         pepper = os.environ.get("CPR_PEPPER")
         enc_cpr = fer.encrypt(cpr.encode()).decode()
+        # Deterministic hashing
         cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
         print(cpr_hash)
         
@@ -537,14 +545,14 @@ def data_test():
         
         return (jsonify({"Success": True}), 200)
     else:
-        return (jsonify({"Success": False}))
+        return (jsonify({"Success": False}), 202)
 
 # ################################################## CONFIG #################################################### #
 """
  This is only used when running the app locally,
  gunicorn is used in production and ignores this. 
  Config, app runs locally on port 8000. 
- NGINX proxies outisde requests to this port, and sends th eapps response back to the client.
+ NGINX proxies outisde requests to this port, and sends the apps response back to the client.
  """
 if __name__ == "__main__":
     app.run(debug=True, port=8000)

@@ -230,69 +230,29 @@ def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=9):
 
 
 if __name__ == "__main__":
+    # filtrer til ekg 
     t, adc = filter_raw_ecg("recv_data.csv")
     print("\nFile has been cleaned up, remaining t and adc indices:")
     print(len(t), len(adc), "\n")
     
+    #finder vores R-peaks 
     r_peaks = detect_r_peaks(t, adc)
     print("Number of R-peaks found:")
     print(len(r_peaks), "\n")
     
+    #kør samlet analyse 
     result = analyze_ecg("recv_data.csv")
-    print("Analyzed data:")
-    print("Found beats:", result.get("beats"))
-    print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
-    print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
-    print("RR intervals standard deviation:", result.get("rr_std"))
-    print("Noise level:", result.get("noise"))
-    print("Thank the fucking Lord Oscar Ericson for his genius math skills, amen.")
     
-    vurdering = test_rytme_analyse(result)
-    print("\nTeknisk rytme-vurdering (din funktion):")
-    print(vurdering)
-
-    
-    
-    
-
-def test_rytme_analyse(result): 
- 
-    if result is None: 
-        return "der er sku ingen data til at analysere"
-
-
-    hr_mean = result.get("hr_mean") # gemmesnits plus beregnet tidligere  (beats pr minute )
-    rr_mean = result.get("rr_mean") # gennemsnits af tiden mellem slagende (RR-interval som er i sekunder)
-    rr_std = result.get("rr_std") # standatad afvigelse for RR og er vores absolut variation 
-    beats = result.get("beats") # hvor mange fucking R_peaks  slag der kommer eller målt 
-
-    # vi laver en fall back, hvis vi motager for lidt data 
-    if hr_mean is None or rr_mean is None or rr_std is None or beats is None: 
-        return "ikke nok data til at vurdere, hjerterytmen"
-
-    # tjekker om der R-peaks  slag nok til at lave en målning 
-    if beats < 3:
-        return ("der skete en fejl prøv igen")
-    # er beregner vi sku da RR-variation og den bruges tå rytmer kan sammenlignes med forskellige pulse. 
-    if rr_mean > 0:
-        cv_rr = rr_std / rr_mean # 
+    if result is not None: 
+        print("Analyzed data:")
+        print("Found beats:", result.get("beats"))
+        print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
+        print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
+        print("RR intervals standard deviation:", result.get("rr_std"))
+        print("Noise level:", result.get("noise"))
+        print("Thank the fucking Lord Oscar Ericson for his genius math skills, amen.")
     else: 
-        cv_rr = 0.0 # hvis den er 0 sætter vi som fallback  
+        print("cg analysen failed (ikke not data eller R-peaks )")
+   
 
-    print(f"DEBUG rhythm: hr_mean={hr_mean:.1f}, rr_mean={rr_mean:.3f}, rr_std={rr_std:.3f}, cv_rr={cv_rr:.3f}, beats={beats}")
-
-    if cv_rr < 0.05:
-        return (
-            f" rytmen ser reglemæssig ud "
-            f"gennemsnits pulsne ligger på  {hr_mean:.1f} bpm."
-        )
-    elif cv_rr <= 0.20: 
-        return ( 
-            f"Rytmen er  der fin  variation i slagene "
-            f"patiens gennemsnitplus = {hr_mean:.1f} bpm"
-        )
-    else: 
-        return ( 
-            f" Rytmen er møg grim så passer ureglemæssig"
-            f"patiens gennemsnitplus = {hr_mean:.1f} bpm"
-        )
+    
