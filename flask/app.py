@@ -23,6 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.serving import WSGIRequestHandler
 from cryptography.fernet import Fernet
 from datetime import datetime, timezone
+import jwt
 import psycopg2  # selv psycopg2 bibloiotket, til oprette forbindelse til db, kører sql kommandoer osv
 import hashlib # This and hmac is for generating deterministic hashes, for saving CPRs
 import hmac
@@ -417,18 +418,24 @@ def dashboard():
     if current_user.role == "sysadmin": # her tjekker vi om brugeren er sysadmin hvis ikke kommer ud ikke ind du 
         return render_template("dashboard.html")
     elif current_user.role == "doctor":
-        graf_data = generate_ecg_graph()
-        return render_template("dashboard_doctor.html",data=graf_data)
+         graf_data = generate_ecg_graph()
+         return render_template("dashboard_doctor.html", data=graf_data)
+
     else:
         # Forbidden
         abort(403)
 
+@app.route("/search")
+@login_required
+def search():
+    
+    return render_template("doctor_patients.html")
 
 
 # ################################################# API #################################################### #
 
 # REMEMBER TO MOVE MOST OF THESE FUNCTIONS INTO A SEPARATE FILE OSCAR
-@app.route("/api/data_test", methods=["POST"])
+@app.route("/api/esp_data", methods=["POST"])
 def data_test():
     timestamp = str(datetime.now(timezone.utc))[:-13]
     print("\nESP32 Connection: data_test API endpoint hit")
@@ -546,6 +553,52 @@ def data_test():
         return (jsonify({"Success": True}), 200)
     else:
         return (jsonify({"Success": False}), 202)
+    
+
+# REMEMBER TO MOVE MOST OF THESE FUNCTIONS INTO A SEPARATE FILE OSCAR
+@app.route("/api/search_patients", methods=["POST", "GET"])
+@login_required
+def search_cpr():
+    # 9309064435  # Oscars flotte CPR
+    data = request.get_json(silent=True) or {}
+    cpr = (data.get("cpr") or data.get ("query") or "").strip().replace("-", "")
+    print(cpr)
+    
+    # Loade pepper (til hashing) fra environment
+    pepper = os.environ.get("CPR_PEPPER")
+    # Deterministic hashing
+    enc_cpr = fer.encrypt(cpr.encode()).decode()
+    cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
+    # Print og kigge at det virkede
+    print(cpr_hash)
+    
+    try:
+        #Connect til DB, og lav en cursor
+        conn = db_connect()
+        cur = conn.cursor()
+        # Send en SQL statement til DB
+        cur.execute("SELECT * FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+        # Gem resultater i en variabel
+        res = cur.fetchone()
+        
+        if res:
+            res = dict(res)
+        if not res:
+            print("CPR doesn't exist in DB")
+            return jsonify({"Success": False,
+                            "Reason": "CPR doesn't exist in DB"}), 200
+        
+        # Print resultater
+        print(res)
+    except Exception as e:
+        print(f"Upsi, fejl :))))): {e}")
+    finally:
+        cur.close()
+        conn.close()
+        
+    
+        
+    return jsonify({"Success": True}), 200
 
 # ################################################## CONFIG #################################################### #
 """

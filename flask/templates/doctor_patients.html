@@ -19,54 +19,153 @@
         {% endif %}
     {% endwith %}
 
-    <!-- Søg formular-->
-    <form method="post" class="mb-4">
-        <div class="mb-3">
-            <label for="search" class="form-label">Søg efter patient</label>
-            <div class="input-group mb-3">
-                <input
-                    type="text"
-                    class="form-control"
-                    id="search"
-                    name="search"
-                    placeholder="Søg efter navn eller CPR..."
-                    aria-label="Søg efter patient"
-                >
-                <button type="submit" class="btn btn-primary">Søg</button>
-            </div>
-        </div>
 
-        <div class="mb-3">
-            <label for="cpr" class="form-label">CPR-nummer (præcis søgning)</label>
+    <!-- Søgefelt til CPR-nummer-->
+    <div class="my-4">
+        <label for="patientSearch" class="form-label"><strong>Søg efter CPR-nummer</strong></label>
+        <div class="input-group mb-3">
             <input
                 type="text"
                 class="form-control"
-                id="cpr"
-                name="cpr"
+                id="patientSearch"
+                name="patient_search"
                 placeholder="xxxxxx-xxxx"
+                inputmode="numeric"
+                pattern="[0-9\-]*"
             >
-        </div>
-        <button type="submit" class="btn btn-primary">Søg patient</button>
-    </form>
 
-    <!--Resultat-->
-    {% if patient %}
-    <h2>Patient fundet</h2>
-    <ul class="list-gruop">
-        <li class="list-group-item">
-            <strong>Navn:</strong> {{ patient.name}}
-        </li>
-        <li class="list-group-item">
-            <strong>CPR:</strong>
-            {{ patient.cpr }} {# evt. masker, se note nedenfor #}
-        </li>
-        {% if patinet.note %}
-        <li class="list-group-item">
-            <strong>Noter</strong> {{ patient.note }}
-        </li>
-        {% endif %}
-    </ul>
-    {% endif %}
+            <!--Knappen der manuelt starter en søgning-->
+            <button type="button" class="btn btn-primary" id="searchBtn">Søg</button>
+        </div>
+        <small class="form-text text-muted">Kun tal og bindestreg tilladt!</small>
+    </div>
+
+    <!-- Search Results Container -->
+    <div id="searchResults" class="mt-4"></div>
 </div>
+
+<!--hent HTML-elementer -->
+<script>
+    const searchInput = document.getElementById('patientSearch');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout; //debounce
+
+    //funktion til at escape HTML-tegn i patient id (for at ungå xss)
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return  '';
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+// Bindestreg automatisk indsættes efter 6 cifre
+    searchInput.addEventListener('input', function(e) {
+        // fjerner alle tal der ikke er tal eller bindestreg
+        let value = this.value.replace(/[^0-9\-]/g, '');
+        
+        // fjerner alle bindestreger for at arbejde med rene tal
+        let digitsOnly = value.replace(/\-/g, '');
+        
+        // kun 6 cifre tilladt før bindesteg, og tilføjer bindestreg efter 6 cifre
+        if (digitsOnly.length > 5) {
+            value = digitsOnly.substring(0, 6) + '-' + digitsOnly.substring(6, 10);
+        } else {
+            value = digitsOnly;
+        }
+        
+        this.value = value;
+    });
+
+    // Start søgning ved klik på knap
+    searchBtn.addEventListener('click', performSearch);
+
+    // start søgning ved enter tasten
+    searchInput.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    // Funktion der kalder API'et og håndterer svar
+    function performSearch() {
+        const searchTerm = searchInput.value.trim();
+        
+
+        // vis loader mens man venter på svar
+        searchResults.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Søger...</span>
+                </div>
+            </div>
+        `;
+
+// kald API endpoint med query parametre
+        fetch("/api/search_patients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cpr: searchTerm })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Fejl:" + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(data);
+        })
+        .catch(err => console.error(err));
+    }
+
+    // Funktion til at vise søgeresultater i DOM'en
+    function displayResults(patients, count) {
+        
+        // Hvis ingen patienter blev fundet
+        if (!patients || patients.length === 0) {
+            searchResults.innerHTML = '<div class="alert alert-info">Ingen patienter fundet</div>';
+            return;
+        }
+
+        // Byg HTML-streng til resultater
+        let html = `
+            <h4 class="mb-3">Søgeresultater (<strong>${count}</strong> fundet)</h4>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>CPR-nummer</th>
+                        </tr>
+                    </thead>
+                <tbody>
+        `;
+
+        patients.forEach((patient, index) => {
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(patient.id)}</td>
+                    <td>${patient.cpr ? escapeHtml(patient.cpr) : ''}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        //sæt HTML ind i result containeren
+        searchResults.innerHTML = html;
+    }
+</script>
+    
+
 {% endblock %}
 

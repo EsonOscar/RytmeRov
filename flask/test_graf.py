@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 import numpy as np
 from scipy.signal import butter, filtfilt
 from matplotlib.ticker import MultipleLocator
+
 from sys import exit
 
 def generate_ecg_graph():
@@ -80,7 +81,6 @@ def generate_ecg_graph():
     adc_zoom = adc_detr[mask_time]
 
     ecg_bp = filtfilt(b, a, adc_zoom)
-
 
     fig = Figure(figsize=(10, 5))
     ax = fig.add_subplot() 
