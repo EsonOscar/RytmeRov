@@ -23,12 +23,15 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.serving import WSGIRequestHandler
 from cryptography.fernet import Fernet
 from datetime import datetime, timezone
+import jwt
 import psycopg2  # selv psycopg2 bibloiotket, til oprette forbindelse til db, kører sql kommandoer osv
+import hashlib # This and hmac is for generating deterministic hashes, for saving CPRs
+import hmac
 import os
+import ecg
 # gør man kan bruge row navn i steet for index i db
 from psycopg2.extras import RealDictCursor
-
-
+from test_graf import generate_ecg_graph
 class ProxiedRequestHandler(WSGIRequestHandler):
     """Proxy request handler class, makes sure we can access the real client IP"""
 
@@ -45,7 +48,7 @@ class ProxiedRequestHandler(WSGIRequestHandler):
 app = Flask(
     __name__,
     static_folder="static",
-    static_url_path="",
+    static_url_path="/home/3semprojekt/RytmeRov/flask/static",
 )
 
 # vi sætter en hemmelig nøgle som bare super
@@ -79,9 +82,12 @@ def db_connect():
         port=os.getenv("DB_PORT"),
         cursor_factory=RealDictCursor,
     )
+    # Not good to have this here, prints every time the DB is accessed
+    """
     print(
         "du er bare inde din flotte lille fæøreske eller svenske eller somaliske eller danske eller hvad du nu er "
     )
+    """
     return conn
 
 
@@ -112,7 +118,7 @@ class User(UserMixin):
 
     @property
     # bruges til at tjekke om en bruger er doktor derved returere True dermed give adgang til doktor sider 
-    def doktor(self):
+    def doctor(self):
         return self.role == "doctor"
 
 
@@ -126,7 +132,7 @@ def load_user(user_id):
     cur = conn.cursor()  # opretter en cursor til at eksekvere sql kommandoer
     try:
         # kommando for at hente brugere baseret på id 
-        cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+        cur.execute("SELECT * FROM users WHERE id = %s AND deleted_at IS NULL", (user_id,))
         # henter den første række fra resultatet af kommandoen og kommer ud i dictionary form
         row = cur.fetchone()
     except Exception as e:
@@ -152,6 +158,13 @@ def load_user(user_id):
 @app.route("/home")
 def index():
     return render_template("index.html")
+
+@app.route("/warnings")
+def warnings():
+    if not current_user.doctor: # her tjekker vi om brugeren er sysadmin
+    # Forbidden
+        abort(403)
+    return render_template("warnings.html")
 
 
 @app.route("/min_profil")
@@ -201,7 +214,7 @@ def login():
     try:
         cur.execute(
             # sql kommandoet for at finde bruger i databasen baseret på username %S er en placeholder
-            "select * FROM users Where username = %s",
+            "select * FROM users Where username = %s AND deleted_at IS NULL",
             (username,),
         )
         # tager den række som matcher brugernavnet ud af databasen gemmer i dict form 
@@ -273,7 +286,7 @@ def logout():
 @app.route("/sysadmin")
 @login_required
 def sysadmin():
-    if not current_user.role.sysadmin: # her tjekker vi om brugeren er sysadmin
+    if not current_user.sysadmin: # her tjekker vi om brugeren er sysadmin
         # Forbidden
         abort(403)
     return render_template("sysadmin.html")
@@ -297,8 +310,8 @@ def create_user():
     if not username or not password or not name or not lastname or not role: 
         flash ("vil de være så venlig at udfylde alle felter tak din smukke person", "warning")
         return redirect (url_for ("create_user"))
-    if role not in ["sysadmin", "doktor"]:
-        flash ("rollen skal være sysadmin eller doktor tak" , "warning")
+    if role not in ["sysadmin", "doctor"]:
+        flash ("rollen skal være sysadmin eller doctor tak" , "warning")
         return redirect (url_for ("create_user"))
     
     #vi skal sku da også havde hastet passwordet før vi connecter til vores db bro
@@ -323,44 +336,276 @@ def create_user():
     
     except psycopg2.Error as e: # psycopg2 fejl håndtering for postgres specifikke fejl
         print ("fejl ved oprettelse af bruger i db", e)
-        flash ("der skete en fejl prøvi igen", "danger")
+        flash ("der skete en fejl prøv igen", "danger")
         return redirect (url_for ("create_user"))
     
     finally:
         conn.close() # lukker forbindelsen til db
+
+@app.route("/bruger_administration")
+@login_required
+def bruger_administration():
+    if not current_user.sysadmin:
+        abort (403)
     
+    conn = db_connect()
+    cur = conn.cursor()
+
+    try:
+        cur.execute (
+            """
+            SELECT id, username, name, lastname, role, created, last_login 
+            FROM users
+            WHERE deleted_at IS NULL
+            ORDER BY id """
+        )
+
+        users = cur.fetchall () # her henter vi alle brugere fra databasen som en liste af dictionaries
+    finally: 
+        conn.close()    
     
+    return render_template ("bruger_administration.html", users=users) # sender brugerne afsted til template 
+@app.route("/delete_user/<int:user_id>", methods=["POST"])
+@login_required
+def delete_user(user_id): 
+    if not current_user.sysadmin:
+        abort (403)
+
+    if current_user.id == user_id:
+        flash ("du må ikke slette dig selv dont do it be that guy", "warning")
+        return redirect (url_for ("bruger_administration"))
+    
+    conn= db_connect()
+    cur = conn.cursor()
+
+    try: #vi tjekker self lige først om brugeren eksistere før vi overhovedet kan slette den 
+        cur.execute ("""SELECT id, username, deleted_at  
+        FROM users WHERE id = %s
+        """, (user_id, ))
+        user = cur.fetchone()
+        
+        
+        if user is None: # tjekker om brugeren findes 
+            flash ("brugeren er allerede slettet eller eksistere ikke mere", "warning")
+            return redirect (url_for ("bruger_administration"))
+
+        if user["deleted_at"] is not None:
+            flash("brugeren er alerede markeret som slettet", "warning")
+            return redirect(url_for("bruger_administration"))
+        
+        # hvis den findes så sletter vi den (evil laugh)
+        cur.execute ("UPDATE users SET deleted_at = NOW() WHERE id = %s", (user_id,))
+
+        conn.commit()
+        flash(f"så er brugeren '{user['username']}' er nu slettet", "success")
+        return redirect(url_for("bruger_administration"))
+
+    except psycopg2.Error as e:
+        print("fejl angånde sletningen af brugeren skete i databasen")
+        flash("der skete en fejl")
+        return redirect(url_for("bruger_administration"))
+    finally:
+        conn.close()
+
+
 
 
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    print(current_user.role)
+    
     if current_user.role == "sysadmin": # her tjekker vi om brugeren er sysadmin hvis ikke kommer ud ikke ind du 
         return render_template("dashboard.html")
     elif current_user.role == "doctor":
-        return render_template("dashboard_doctor.html")
+         graf_data = generate_ecg_graph()
+         return render_template("dashboard_doctor.html", data=graf_data)
+
     else:
         # Forbidden
         abort(403)
 
+@app.route("/search")
+@login_required
+def search():
+    
+    return render_template("doctor_patients.html")
 
 
 # ################################################# API #################################################### #
 
-@app.route("/api/hello", methods=["GET"])
+# REMEMBER TO MOVE MOST OF THESE FUNCTIONS INTO A SEPARATE FILE OSCAR
+@app.route("/api/esp_data", methods=["POST"])
+def data_test():
+    timestamp = str(datetime.now(timezone.utc))[:-13]
+    print("\nESP32 Connection: data_test API endpoint hit")
+    data = request.get_data(as_text=True)
+    if data:
+        #print(data, "\n")
+        #data = data.strip().split("\n")
+        
+        #for i in range(len(data)):
+           # data[i] = data[i].split(",")
+        print("Data recieved!")
+        #print(data, "\n")
+            
+        key = os.getenv("ENC_KEY")
+        fer = Fernet(key.encode())
+        if not key:
+            print("Error loading encryption key from environment, redirecting...")
+            return (jsonify({"Success": False,
+                             "Reason": "Encryption key not found."}))
+        else:
+            print("Encryption key successfully loaded!")
+            
+        cpr = data.strip().split("\n")[0]
+        print(cpr)
+        
+        pepper = os.environ.get("CPR_PEPPER")
+        enc_cpr = fer.encrypt(cpr.encode()).decode()
+        # Deterministic hashing
+        cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
+        print(cpr_hash)
+        
+        pat_id = None
+        
+        try:
+            conn = db_connect()
+            cur = conn.cursor()
+            
+            cur.execute("SELECT id FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+            pat_id = cur.fetchone()
+            if pat_id:
+                pat_id = dict(pat_id)
+            
+            print(pat_id)
+            
+            if not pat_id:
+                cur.execute("""
+                            INSERT INTO patients (cpr, cpr_hash) VALUES (%s, %s)
+                            """,
+                            (enc_cpr, cpr_hash))
+
+                conn.commit()
+                
+                # Get newly created ID yo
+                cur.execute("SELECT id FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+                pat_id = cur.fetchone()
+                if pat_id:
+                    pat_id = dict(pat_id)
+                
+                print("Patient not found in DB, new entry created.")
+                print(f"New patient ID: {pat_id.get("id")}")
+            
+            else:
+                print(f"Patient found in DB, ID: {pat_id.get("id")}")
+            
+        except Exception as e:
+            print(f"Error when getting patient ID: {e}")
+        finally:
+            cur.close()
+            conn.close()
+        
+        cpr = None
+        
+        
+        file_name = Fernet.generate_key().decode()[:-1]
+        
+        enc_data = fer.encrypt(data.encode())
+        #print(enc_data)
+        with open(f"ecg/{file_name}.csv", "w") as f:
+            f.write(str(enc_data.decode()))
+        
+        # insert patient ID and filename in ecg table
+        try:
+            conn = db_connect()
+            cur = conn.cursor()
+            
+            # UPDATE AFIB WHEN LOGIC IS THERE TO LOOK FOR IT
+            cur.execute("""
+                        INSERT INTO ekg (patient_id, ekg, afib, timestamp) 
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (pat_id.get("id"), file_name, False, timestamp))
+            conn.commit()
+            print("ECG data inserted into DB.")
+        except Exception as e:
+            print(f"Error when inserting ECG data. Error: {e}")
+        finally:
+            cur.close()
+            conn.close()
+        
+        with open("recv_data.csv", "w") as f:
+            f.write(str(data))
+        
+        result = ecg.analyze_ecg("recv_data.csv")
+        
+        print("\n========================================================================")
+        print("\nAnalyzed data:")
+        print("Found beats:", result.get("beats"))
+        print("Average heartrate:", round(result.get("hr_mean"), 2), "beats per minute")
+        print("Average RR interval:", round(result.get("rr_mean"), 2), "seconds")
+        print("RR intervals standard deviation:", result.get("rr_std"))
+        print("Noise level:", result.get("noise"))
+        print("Thank the Lord Oscar Ericson for his genius math skills, amen.\n")
+        print("========================================================================\n")    
+        
+        return (jsonify({"Success": True}), 200)
+    else:
+        return (jsonify({"Success": False}), 202)
+    
+
+# REMEMBER TO MOVE MOST OF THESE FUNCTIONS INTO A SEPARATE FILE OSCAR
+@app.route("/api/search_patients", methods=["POST", "GET"])
 @login_required
-def api_hello():
-    return jsonify({"message": f"Hello {current_user.username}!"})
-
-
+def search_cpr():
+    # 9309064435  # Oscars flotte CPR
+    data = request.get_json(silent=True) or {}
+    cpr = (data.get("cpr") or data.get ("query") or "").strip().replace("-", "")
+    print(cpr)
+    
+    # Loade pepper (til hashing) fra environment
+    pepper = os.environ.get("CPR_PEPPER")
+    # Deterministic hashing
+    enc_cpr = fer.encrypt(cpr.encode()).decode()
+    cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
+    # Print og kigge at det virkede
+    print(cpr_hash)
+    
+    try:
+        #Connect til DB, og lav en cursor
+        conn = db_connect()
+        cur = conn.cursor()
+        # Send en SQL statement til DB
+        cur.execute("SELECT * FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+        # Gem resultater i en variabel
+        res = cur.fetchone()
+        
+        if res:
+            res = dict(res)
+        if not res:
+            print("CPR doesn't exist in DB")
+            return jsonify({"Success": False,
+                            "Reason": "CPR doesn't exist in DB"}), 200
+        
+        # Print resultater
+        print(res)
+    except Exception as e:
+        print(f"Upsi, fejl :))))): {e}")
+    finally:
+        cur.close()
+        conn.close()
+        
+    
+        
+    return jsonify({"Success": True}), 200
 
 # ################################################## CONFIG #################################################### #
 """
  This is only used when running the app locally,
- gunicorn is used in production and ignores this. Config, app runs locally on port 8000. 
- NGINX proxies outisde requests to this port, and sends th eapps response back to the client.
+ gunicorn is used in production and ignores this. 
+ Config, app runs locally on port 8000. 
+ NGINX proxies outisde requests to this port, and sends the apps response back to the client.
  """
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
-
-

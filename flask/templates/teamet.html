@@ -1,7 +1,31 @@
-
 {% extends "base.html" %}
 
 {% block content %}
 <h1>Mød holdet bag RytmeRov</h1>
 <p> her skal der stå noget fedt</p>
+
+
+
+<!--Resultat-->
+    {% if patient %}
+    <h2>Patient fundet</h2>
+    <ul class="list-gruop">
+        <li class="list-group-item">
+            <strong>Navn:</strong> {{ patient.name}}
+        </li>
+        <li class="list-group-item">
+            <strong>CPR:</strong>
+            {{ patient.cpr }} {# evt. masker, se note nedenfor #}
+        </li>
+        {% if patinet.note %}
+        <li class="list-group-item">
+            <strong>Noter</strong> {{ patient.note }}
+        </li>
+        {% endif %}
+    </ul>
+    {% endif %}
+</div>
+
+
+
 {% endblock %}
