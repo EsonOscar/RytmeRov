@@ -415,8 +415,11 @@ except Exception as e:
     lcd.clear()
     lcd.move_to(0,0)
     lcd.putstr("STREAMING FEJLEDE")
-    lcd.move_to(0,1)
+    lcd.move_to(0,2)
+    lcd.putstr(f"Error: {e}")
+    lcd.move_to(0,3)
     lcd.putstr("SLUKKER...")
+    wlan.disconnect()
     sleep(3)
     sys.exit()
 finally:

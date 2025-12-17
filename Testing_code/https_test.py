@@ -20,7 +20,7 @@ wlan = connectPhone()
 print("Client IP:", wlan.ifconfig()[0])
 
 
-"""
+
 try:
     print("\nLocal time before synchronization：%s\n" %str(time.localtime()))
     #ntptime.host = 'time.google.com'
@@ -41,11 +41,11 @@ except Exception as e:
 
 post_data = {"value": "TEST DATA FROM ESP32"}
 body = json.dumps(post_data)
-"""
-server = "hvalfangerne.com"
-path = "/api/data_test"
 
-size = os.stat("ecg.txt")[6]
+server = "hvalfangerne.com"
+path = "/api/esp_data"
+
+size = os.stat("ping.txt")[6]
 print(size)
 
 
@@ -76,7 +76,7 @@ start = ticks_ms()
 try:
     ssl_sock.write(headers.encode())
     chunk_size = 512
-    with open("ecg.txt", "rb") as f:
+    with open("ping.txt", "rb") as f:
         while True:
             chunk = f.read(chunk_size)
             print(chunk)
