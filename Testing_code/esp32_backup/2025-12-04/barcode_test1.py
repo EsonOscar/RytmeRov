@@ -11,13 +11,6 @@ sleep(4)
 pwr.value(0)
 """
 
-
-mos = Pin(14, Pin.OUT)
-
-mos.value(0)
-
-mos.value(1)
-
 uart = UART(2, 9600)
 
 print("Barcode scanner program successfully loaded, waiting for input...\n")
@@ -29,6 +22,4 @@ while True:
         print(f"Scanned code: {code}")
         data = None
         code = None
-        mos.value(1)
     sleep(0.1)
-    

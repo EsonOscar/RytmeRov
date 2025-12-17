@@ -10,20 +10,9 @@ adc = []
 lom = []
 lop = []
 
-with open("ecg_best_ever_omg.txt", "r") as f:
+with open("ecg.txt", "r") as f:
     for line in f:
         clean = line.strip()
-        """
-        data = clean.split(",")
-        for i in range(len(data)):
-            data[i] = int(data[i])
-        #print(data, f"LOM: {data[2]}, LOP: {data[3]}")
-        if data[2] == 0 and data[3] == 0:
-            #print("TEST")
-            x.append(data[0])
-            y.append(data[1])
-        #print(f"Time: {data[0]} | ADC: {data[1]}")
-        """
         data = clean.split(",")
         ti, ai, lomi, lopi = map(int, data)
         t.append(ti)
