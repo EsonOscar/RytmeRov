@@ -92,8 +92,6 @@ def generate_ecg_graph():
 
     ax.grid(True)
 
-   
-
     ax.set_ylabel("ADC")
     ax.set_xlabel("Time (s)") 
     ax.set_title("ECG Data")
@@ -108,6 +106,3 @@ def generate_ecg_graph():
     
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return data
-
-
-

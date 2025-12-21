@@ -1,22 +1,41 @@
-import numpy as np #
+import numpy as np
+from io import BytesIO
+from cryptography.fernet import Fernet
+from matplotlib.figure import Figure
+from matplotlib.ticker import MultipleLocator
 from scipy.signal import butter, filtfilt
 import statistics as stats
+import base64
+import os
 from sys import exit
 
+db_user = os.environ.get("DB_USER")
+db_pass = os.environ.get("DB_PASS")
+db_port = os.environ.get("DB_PORT")
+db_name = os.environ.get("DB_NAME")
+
+key = os.environ.get("ENC_KEY")
+fer = Fernet(key.encode())
+
+pepper = os.environ.get("CPR_PEPPER")
+
 # Take a raw ECG measurement and make it oh so beautiful
-def filter_raw_ecg(filepath, start_time=0, stop_time=10):
+# REWRITE TO TAKE A DECRYPTED SET OF LISTS INSTEAD OF FILE
+def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=10):
     """
     Takes a raw unfiltered ECG measurement containing times in ms, ADC values, LOP and LOM (electrode contact)
-    and filters it, to produce a two clean output lists, t and adc.
+    and filters it, to produce two clean output lists, t and adc.
     """
-    
+    """
     adc = []
-    tid = []
+    t = []
     lom = []
     lop = []
 
     count = 0
     
+    
+    # REWRITE TO TAKE A DECRYPTED SET OF LISTS INSTEAD OF FILE
     with open(filepath, "r") as f:
         for line in f:
             #print(count)
@@ -30,30 +49,32 @@ def filter_raw_ecg(filepath, start_time=0, stop_time=10):
                 lom.append(int(data[2]))
                 lop.append(int(data[3]))
             count = count + 1
+    """
+    #print(tid)
     
-    #print(tid)  
     
-    tid = np.array(tid)
-    tid_ms = np.array(tid)
+    
+    t = np.array(t)
+    t_ms = np.array(t)
     adc =  np.array(adc)
     lom =  np.array(lom)
     lop =  np.array(lop)
 
 
     mask = (lom == 0) & (lop == 0)
-    tid  = tid[mask]
+    t  = t[mask]
     adc = adc[mask]
 
     # If all data rows are filtered out due to bad electrode contact, exit function
-    if len(tid) == 0 or len(adc) == 0:
+    if len(t) == 0 or len(adc) == 0:
         print("No usable data, exiting ECG graph function...")
         return
     
-    # Error happened here once, tid[0] out of index?
+    # Error happened here once, t[0] out of index?
     # Happens when all rows are deleted in filtering
-    #print(tid)
+    #print(t)
     try:
-        tid = (tid - tid[0]) / 1000.0
+        t = (t - t[0]) / 1000.0
     except Exception as e:
         print(f"Error when loading graph data, exiting.")
         print(f"Error: {e}")
@@ -64,7 +85,7 @@ def filter_raw_ecg(filepath, start_time=0, stop_time=10):
     adc_mean = adc.mean()
     adc_detr = adc - adc_mean
 
-    dt = np.diff(tid_ms) / 1000.0 
+    dt = np.diff(t_ms) / 1000.0 
 
     dt_med = np.median(dt)
     fs = 1.0 / dt_med 
@@ -78,13 +99,33 @@ def filter_raw_ecg(filepath, start_time=0, stop_time=10):
 
     b, a = butter(N=4, Wn=[low, high], btype='bandpass')
 
-    mask_time = (tid <= stop_time) & (tid >= start_time)
-    t_zoom = tid[mask_time]
+    mask_time = (t <= stop_time) & (t >= start_time)
+    t_zoom = t[mask_time]
     adc_zoom = adc_detr[mask_time]
 
     ecg_bp = filtfilt(b, a, adc_zoom)
     
     return t_zoom, ecg_bp
+
+def generate_graph(t_zoom, ecg_bp):
+    fig = Figure(figsize=(10, 5))
+    ax = fig.add_subplot() 
+
+    ax.plot(t_zoom, ecg_bp)
+
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+
+    ax.grid(True)
+
+    ax.set_ylabel("ADC")
+    ax.set_xlabel("Time (s)") 
+    ax.set_title("ECG Data")
+
+    buf = BytesIO()
+    fig.savefig(buf, format="png")
+    
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    return data
 
 # Try to detect R-peaks in a cleaned up ECG measurement
 def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
@@ -144,8 +185,8 @@ def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
 
 
 # Final put together version, with data like HR, intervals etc. pretty cool good job Oscar
-def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=9):
-    t, adc = filter_raw_ecg("recv_data.csv")
+def analyze_ecg(t, adc, rf_sec=0.25, thresh_factor=9):
+    #t, adc = filter_raw_ecg("recv_data.csv")
     
     if len(t) == 0:
         print("No values in the selected dataset")
@@ -203,7 +244,37 @@ def analyze_ecg(filepath, rf_sec=0.25, thresh_factor=9):
         "hr_per_interval": hr_per_interval,
         "noise": noise_level
     }
+    
+def decrypt_ecg(filename):
+    filename = filename + ".csv"
+    #print(filename)
+    
+    with open(f"/home/3semprojekt/RytmeRov/flask/ecg/{filename}", "r") as f:
+        enc_ecg = f.read()
+    
+    decr_ecg = fer.decrypt(enc_ecg.encode()).decode().strip().split("\n")
+    
+    #print(decr_ecg)
+    #print(type(decr_ecg))
+    
+    t = []
+    adc = []
+    lom = []
+    lop = []
+    count = 0
+    for line in decr_ecg:
+        if count == 0:
+            count = 1
+        else:
+            data = line.split(",")
+            #print(data)
+            t.append(int(data[0]))
+            adc.append(int(data[1]))
+            lom.append(int(data[2]))
+            lop.append(int(data[3]))
 
+    return t, adc, lom, lop
+    
 if __name__ == "__main__":
     t, adc = filter_raw_ecg("recv_data.csv")
     print("\nFile has been cleaned up, remaining t and adc indices:")

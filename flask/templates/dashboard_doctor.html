@@ -9,10 +9,9 @@
 <div class="container py-4">
     <div class="row">
         <div class="col">
-            <h1 class="h4 mb-1">ECG Data</h1>
-            <p class="text-muted">Patients ECG signal</p>
+            <h1 class="h4 mb-1">EKG Data tilhørende CPR: {{ cpr }}</h1>
+            <p class="text-muted">Tidspunkt for måling: {{ timestamp }}</p>
         </div>
-
         <div class="col-auto">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -26,21 +25,113 @@
             {% endwith %}
         </div>
     </div>
+    
     <div class="row">
-        <div class ="col-12">
-            <div class ="card shadow-sm">
-                <div class ="card-header bg-light">
-                    <h5 class ="card-title mb-0">Din patient</h5>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">Filtreret EKG</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="data:image/png;base64,{{ data }}" class="img-fluid" alt="ECG Graph"> 
+                </div>
             </div>
-            <div class="card-body" text-center>
-                <img src="data:image/png;base64,{{ data }}" class="img-fluid" alt="ECG Graph"> 
-            
         </div>
     </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">Målingsværdier</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mt-4">
+                        <div class="col-4">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Basisdata</h5>
+                                </div>
+                                <table class="table table-striped mb-0 mt-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Måling</th><th>Værdi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="table-group-divider">
+                                        <tr>
+                                            <td>Antal slag</td>
+                                            <td>{{ ecg_data.beats }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Puls</td>
+                                            <td>{{ ecg_data.hr_mean }} slag / min</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Gns. R til R interval</td>
+                                            <td>{{ ecg_data.rr_mean }} sek</td>
+                                        </tr>
+                                        <tr>
+                                            <td>R til R standard deviation</td>
+                                            <td>{{ ecg_data.rr_std }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Noise level</td>
+                                            <td>{{ ecg_data.noise }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Specifik tid mellem R-peaks</h5>
+                                </div>
+                                <table class="table table-striped mb-0 mt-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Måling</th><th>Værdi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="table-group-divider">
+                                        {% for elem in ecg_data.rr_intervals %}
+                                        <tr>
+                                            <td>R{{loop.index}} til R{{loop.index + 1}}</td>
+                                            <td>{{ elem }} sek</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Specifik puls mellem R-peaks</h5>
+                                </div>
+                                <table class="table table-striped mb-0 mt-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Måling</th><th>Værdi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="table-group-divider">
+                                        {% for elem in ecg_data.hr_per_interval %}
+                                        <tr>
+                                            <td>Slag {{loop.index}} til slag {{loop.index + 1}}</td>
+                                            <td>{{ elem }} slag / min</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-
-
-
-
-
-{% endblock %} 
+{% endblock %}

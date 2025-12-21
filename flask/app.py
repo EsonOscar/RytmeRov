@@ -410,17 +410,85 @@ def delete_user(user_id):
 
 
 
-@app.route("/dashboard")
+@app.route("/dashboard/<cpr_hash>")
 @login_required
-def dashboard():
-    print(current_user.role)
-    
+def dashboard(cpr_hash):
+    #print(cpr_hash)
     if current_user.role == "sysadmin": # her tjekker vi om brugeren er sysadmin hvis ikke kommer ud ikke ind du 
         return render_template("dashboard.html")
     elif current_user.role == "doctor":
-         graf_data = generate_ecg_graph()
-         return render_template("dashboard_doctor.html", data=graf_data)
-
+        """
+        OLD LOGIC, LEAVING FOR NOW
+        
+        clean_data = ecg.filter_raw_ecg("/home/3semprojekt/RytmeRov/flask/recv_data.csv")
+        graph_data = ecg.generate_graph(clean_data[0], clean_data[1])
+        ecg_data = ecg.analyze_ecg("/home/3semprojekt/RytmeRov/flask/recv_data.csv")
+        for elem in ecg_data:
+            #print(ecg_data[elem])
+            if type(ecg_data[elem]) == list:
+                for i in range(len(ecg_data[elem])):
+                    ecg_data[elem][i] = round(float(ecg_data[elem][i]), 2)
+            else:
+                ecg_data[elem] = round(float(ecg_data[elem]), 2)
+        #print(ecg_data)
+        return render_template("dashboard_doctor.html", data=graph_data, ecg_data=ecg_data)
+        """
+        
+        key = os.getenv("ENC_KEY")
+        fer = Fernet(key.encode())
+        
+        try:
+            conn = db_connect()
+            cur = conn.cursor()
+            
+            cur.execute("SELECT id FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+            pat_id = dict(cur.fetchone()).get("id")
+            #print(pat_id)
+            
+            if not pat_id:
+                return jsonify({"Success": False,
+                                "Reason": "Internal server error, patient not found"}), 500
+            
+            cur.execute("""SELECT * FROM ekg 
+                        WHERE patient_id = %s
+                        ORDER BY timestamp DESC
+                        LIMIT 1""", (pat_id,))
+            ecg_data = dict(cur.fetchone())
+            timestamp = ecg_data.get("timestamp")
+            #print(ecg_data)
+            print(timestamp)
+            
+            cur.execute("SELECT cpr FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+            enc_cpr = cur.fetchone()
+            enc_cpr = enc_cpr.get("cpr")
+            #print(enc_cpr.encode())
+            decr_cpr = fer.decrypt(enc_cpr.encode()).decode()
+            #print(decr_cpr)
+            
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            cur.close()
+            conn.close()
+        
+        t, adc, lom, lop = ecg.decrypt_ecg(ecg_data.get("ekg"))
+        #print(t, adc, lom, lop)
+        clean_data = ecg.filter_raw_ecg(t, adc, lom, lop)
+        #print(clean_data)
+        graph_data = ecg.generate_graph(clean_data[0], clean_data[1])
+        #print(graph_data)
+        ecg_data = ecg.analyze_ecg(clean_data[0], clean_data[1])
+        for elem in ecg_data:
+            #print(ecg_data[elem])
+            if type(ecg_data[elem]) == list:
+                for i in range(len(ecg_data[elem])):
+                    ecg_data[elem][i] = round(float(ecg_data[elem][i]), 2)
+            else:
+                ecg_data[elem] = round(float(ecg_data[elem]), 2)
+        #print(ecg_data)    
+        
+        return render_template("dashboard_doctor.html", data=graph_data, ecg_data=ecg_data, cpr=decr_cpr, timestamp=timestamp)
+        
     else:
         # Forbidden
         abort(403)
@@ -428,8 +496,7 @@ def dashboard():
 @app.route("/search")
 @login_required
 def search():
-    
-    return render_template("doctor_patients.html")
+    return render_template("search.html")
 
 
 # ################################################# API #################################################### #
@@ -438,7 +505,7 @@ def search():
 @app.route("/api/esp_data", methods=["POST"])
 def data_test():
     timestamp = str(datetime.now(timezone.utc))[:-13]
-    print("\nESP32 Connection: data_test API endpoint hit")
+    print("\nESP32 Connection: esp_data API endpoint hit")
     data = request.get_data(as_text=True)
     if data:
         #print(data, "\n")
@@ -559,15 +626,30 @@ def data_test():
 @app.route("/api/search_patients", methods=["POST", "GET"])
 @login_required
 def search_cpr():
+    
+    if current_user.sysadmin:
+        return render_template("index.html")
+    elif current_user.doctor:
+        pass
+    else:
+        return jsonify({"Forbidden": "Unauthorized"}), 403
+    
+    print(f"Search patients API endpoint hit by: {current_user.name}")
+    
     # 9309064435  # Oscars flotte CPR
     data = request.get_json(silent=True) or {}
-    cpr = (data.get("cpr") or data.get ("query") or "").strip().replace("-", "")
+    print(data)
+    print(type(data.get("cpr")))
+    if data.get("cpr") == "":
+        print("No CPR received")
+        return jsonify({"Success": False,
+                        "Reason": "No CPR given"}), 200
+    cpr = data.get("cpr").strip().replace("-", "")
     print(cpr)
     
     # Loade pepper (til hashing) fra environment
     pepper = os.environ.get("CPR_PEPPER")
     # Deterministic hashing
-    enc_cpr = fer.encrypt(cpr.encode()).decode()
     cpr_hash = hmac.new(pepper.encode(), cpr.encode(), hashlib.sha256).hexdigest()
     # Print og kigge at det virkede
     print(cpr_hash)
@@ -594,11 +676,45 @@ def search_cpr():
         print(f"Upsi, fejl :))))): {e}")
     finally:
         cur.close()
+        conn.close()  
+        
+    return jsonify({"Success": True,
+                    "patient": cpr,
+                    "hash": cpr_hash}), 200
+    
+@app.route("/api/patient_dashboard", methods=["POST"])
+@login_required
+def dashboard_redirect():
+    if current_user.sysadmin:
+        return render_template("index.html")
+    elif current_user.doctor:
+        pass
+    else:
+        return jsonify({"Forbidden": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    cpr_hash = data.get("cpr_hash")
+    
+    try:
+        conn = db_connect()
+        cur = conn.cursor()
+        
+        cur.execute("SELECT * FROM patients WHERE cpr_hash = %s", (cpr_hash,))
+        res = cur.fetchone()
+        
+        print(res)
+        
+        if res == None:
+            print("Hash not found, redirecting...")
+            return redirect(url_for("search"))
+        
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        cur.close()
         conn.close()
         
-    
-        
-    return jsonify({"Success": True}), 200
+    return redirect(url_for('dashboard', cpr_hash=cpr_hash))
 
 # ################################################## CONFIG #################################################### #
 """

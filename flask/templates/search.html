@@ -1,28 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}
-
 {% block content %}
 
+<div class = "container py-4">
+    <h1 class = "mb-4">Find patienter</h1>
 
-<div class="container py-4">
-    <h1>Patienter</h1>
-    <p>Velkommen</p>
+<!-- Flash beskeder -->
+    {% with messaged = get_flashed_messages(with_categories=true) %}
+        {% if messaged %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-    <!-- Flash Messages -->
-    <div class="col-auto">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <!--category bruges til alert-success, alert danger..-->
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
 
     <!-- Søgefelt til CPR-nummer-->
     <div class="my-4">
@@ -37,6 +31,7 @@
                 inputmode="numeric"
                 pattern="[0-9\-]*"
             >
+
             <!--Knappen der manuelt starter en søgning-->
             <button type="button" class="btn btn-primary" id="searchBtn">Søg</button>
         </div>
@@ -65,7 +60,7 @@
             .replace(/'/g, "&#039;");
     }
     
-    // Bindestreg automatisk indsættes efter 6 cifre
+// Bindestreg automatisk indsættes efter 6 cifre
     searchInput.addEventListener('input', function(e) {
         // fjerner alle tal der ikke er tal eller bindestreg
         let value = this.value.replace(/[^0-9\-]/g, '');
@@ -107,64 +102,58 @@
             </div>
         `;
 
-        // kald API endpoint med query parametre
-        fetch(`/api/search_patients?query=${encodeURIComponent(searchTerm)}`)
-            .then(response => {
-                // hvis servern svarer med fejlstatus, kast en fejl 
-                if (!response.ok) {
-                    throw new Error('Fejl:' + response.status);
-                }
-                // konverter svaret til JSON
-                return response.json();
+// kald API endpoint med query parametre
+        fetch("/api/search_patients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cpr: searchTerm })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Fejl:" + response.status);
+            }
+            return response.json();
         })
         .then(data => {
-                // forudsætter at API'et returnerer { succes patients, count, message}
-                if (data.success) {
-                    displayResults(data.patients, data.count);
-                } else {
-                    searchResults.innerHTML = `<div class="alert alert-warning">Fejl: ${data.message || 'Kunne ikke søge'}</div>`;
-                }
-            })
-            .catch(error => {
-                // netværksfejl eller kastede fejl overnfor
-                console.error('Search error:', error);
-                searchResults.innerHTML = `<div class="alert alert-danger">Fejl ved søgning: ${error.message}</div>`;
-            });
+            console.log(data);
+            displayResults(data.Success, data.patient, data.hash)
+        })
+        .catch(err => {
+            console.error(err);
+            searchResults.innerHTML = '<div class="alert alert-danger">Søgning fejlede</div>';
+        });
+            
     }
+
     // Funktion til at vise søgeresultater i DOM'en
-    function displayResults(patients, count) {
+    function displayResults(success, patient, hash) {
+        
         // Hvis ingen patienter blev fundet
-        if (!patients || patients.length === 0) {
+        if (!patient || patient.length === 0) {
             searchResults.innerHTML = '<div class="alert alert-info">Ingen patienter fundet</div>';
             return;
         }
 
         // Byg HTML-streng til resultater
         let html = `
-            <h4 class="mb-3">Søgeresultater (<strong>${count}</strong> fundet)</h4>
+            <h4 class="mb-3">Søgeresultat</h4>
             <div class="table-responsive">
                 <table class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Patient ID</th>
                             <th>CPR-nummer</th>
+                            <th>Handling</th>
                         </tr>
                     </thead>
-                <tbody>
-        `;
-
-        patients.forEach((patient, index) => {
-            html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${escapeHtml(patient.id)}</td>
-                    <td>${patient.cpr ? escapeHtml(patient.cpr) : ''}</td>
-                </tr>
-            `;
-        });
-
-        html += `
+                    <tbody>
+                        <tr>
+                            <td>${escapeHtml(patient)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="goToDashboard('${escapeHtml(hash)}')">
+                                    Patientdashboard
+                                </button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -173,6 +162,33 @@
         //sæt HTML ind i result containeren
         searchResults.innerHTML = html;
     }
+
+    // Funktion til at sende hash til API og redirect
+    function goToDashboard(hash) {
+        fetch("/api/patient_dashboard", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cpr_hash: hash })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Fejl:" + response.status);
+            }
+            // Fetch follows redirects automatically
+            return response;
+        })
+        .then(response => {
+            // If redirected, the page will load automatically
+            window.location.href = response.url;
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Kunne ikke åbne dashboard');
+        });
+    }
+
 </script>
+    
 
 {% endblock %}
+

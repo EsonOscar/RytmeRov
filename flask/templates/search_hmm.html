@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class = "container py-4">
+    <h1 class = "mb-4">Find patienter</h1>
+
+<!-- Flash beskeder -->
+    {% with messaged = get_flashed_messages(with_categories=true) %}
+        {% if messaged %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+
+    <!-- Søgefelt til CPR-nummer-->
+    <div class="my-4">
+        <label for="patientSearch" class="form-label"><strong>Søg efter CPR-nummer</strong></label>
+        <div class="input-group mb-3">
+            <input
+                type="text"
+                class="form-control"
+                id="patientSearch"
+                name="patient_search"
+                placeholder="xxxxxx-xxxx"
+                inputmode="numeric"
+                pattern="[0-9\-]*"
+            >
+
+            <!--Knappen der manuelt starter en søgning-->
+            <button type="button" class="btn btn-primary" id="searchBtn">Søg</button>
+        </div>
+        <small class="form-text text-muted">Kun tal og bindestreg tilladt!</small>
+    </div>
+
+    <!-- Search Results Container -->
+    <div id="searchResults" class="mt-4"></div>
+</div>
+
+<!--hent HTML-elementer -->
+<script>
+    const searchInput = document.getElementById('patientSearch');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    let searchTimeout; //debounce
+
+    //funktion til at escape HTML-tegn i patient id (for at ungå xss)
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return  '';
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+</script>
+
+{% endblock %}

@@ -33,16 +33,16 @@ try:
     print("PATIENTS:")
     for i in range(len(pat)):
         print("\n")
-        print("Patient 1:")
+        print(f"Entry {i}:")
         for elem in pat[i]:
-            print(f"Entry: {elem}")
+            print(f"Data: {elem}")
     print("===========================================================")
     print("ECG:")
     for i in range(len(ecg)):
         print("\n")
-        print("Patient 1:")
+        print(f"Entry {i}:")
         for elem in ecg[i]:
-            print(f"Entry: {elem}")
+            print(f"Data: {elem}")
     print("===========================================================")
 except Exception as e:
     print(f"Error loading DB data. Error: {e}")
