@@ -452,10 +452,17 @@ def dashboard(cpr_hash):
             cur.execute("""SELECT * FROM ekg 
                         WHERE patient_id = %s
                         ORDER BY timestamp DESC
-                        LIMIT 1""", (pat_id,))
-            ecg_data = dict(cur.fetchone())
+                        LIMIT 6""", (pat_id,))
+            ecg_data_bulk = cur.fetchall()
+            old_timestamps = []
+            for elem in ecg_data_bulk:
+                old_timestamps.append(elem.get("timestamp"))
+            #print(ecg_data_bulk)
+            print(old_timestamps)
+            ecg_data = dict(ecg_data_bulk[0])
             timestamp = ecg_data.get("timestamp")
-            #print(ecg_data)
+             
+            print(ecg_data)
             print(timestamp)
             
             cur.execute("SELECT cpr FROM patients WHERE cpr_hash = %s", (cpr_hash,))
@@ -487,7 +494,7 @@ def dashboard(cpr_hash):
                 ecg_data[elem] = round(float(ecg_data[elem]), 2)
         #print(ecg_data)    
         
-        return render_template("dashboard_doctor.html", data=graph_data, ecg_data=ecg_data, cpr=decr_cpr, timestamp=timestamp)
+        return render_template("dashboard_doctor.html", data=graph_data, ecg_data=ecg_data, cpr=decr_cpr, timestamp=timestamp, old_timestamps=old_timestamps)
         
     else:
         # Forbidden
@@ -605,8 +612,9 @@ def data_test():
         with open("recv_data.csv", "w") as f:
             f.write(str(data))
         
-        result = ecg.analyze_ecg("recv_data.csv")
-        
+        #result = ecg.analyze_ecg("recv_data.csv")
+        print("\nNew ECG data received!\n")
+        """
         print("\n========================================================================")
         print("\nAnalyzed data:")
         print("Found beats:", result.get("beats"))
@@ -616,7 +624,7 @@ def data_test():
         print("Noise level:", result.get("noise"))
         print("Thank the Lord Oscar Ericson for his genius math skills, amen.\n")
         print("========================================================================\n")    
-        
+        """
         return (jsonify({"Success": True}), 200)
     else:
         return (jsonify({"Success": False}), 202)

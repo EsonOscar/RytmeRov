@@ -1,23 +1,43 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Velkommen til RytmeRov!</h1>
+<h1 class="mt-4 text-center">Velkommen til RytmeRov!</h1>
 
-<div class="row justify-content-center gx-4 gy-4 mt-3" style="margin-top: 20px; margin-bottom: 20px;">
+<div class="row justify-content-center gx-4 gy-4" style="margin-bottom: 20px;">
     <div class="col-sm-5 col-md-3 col-lg-3">
-        <div class="card h-100 w-100">
-            <img src="{{ url_for('static', filename='device.png') }}" 
-                 class="card-img-top img-fluid" alt="device">
-            
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">Lær mere om RytmeRov</h5>
+        <div class="card shadow-sm mt-4 mx-auto" style="width: 18rem;">
+            <img src="{{ url_for('static', filename='afib_screener.jpg') }}" class="card-img-top card-fixed-img" alt="Screener" style="height: 200px; object-fit: cover;">
+            <div class="card-body">
+                <h5 class="card-title">RytmeRovs AFIB Screener</h5>
                 <p class="card-text">
-                    RytmeRov har fokus på effektivisering af hjertemonitorering for patienter
-                    med hjerteproblemer. Før patienterne kommer ind til lægen, får de foretaget
-                    forebyggende målinger med RytmeRovs smart device.
+                    RytmeRov har fokus på effektivisering af screening for atrieflimren, specielt hos ældre.
+                    Før en patient kommer ind til lægen, kan de lave en
+                    forebyggende måling med RytmeRovs smart device.
                 </p>
-
-                <a href="/mere-om-rytmerov" class="btn btn-primary mt-auto">Lær mere</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-5 col-md-3 col-lg-3">
+        <div class="card shadow-sm mt-4 mx-auto" style="width: 18rem;">
+            <img src="{{ url_for('static', filename='ecg.png') }}" class="card-img-top card-fixed-img" alt="EKG" style="height: 200px; object-fit: cover;">
+            <div class="card-body">
+                <h5 class="card-title">Inspektere måling</h5>
+                <p class="card-text">
+                    Hvis lægen gerne vil have mere information, end bare en advarsel for atriflimren,
+                    kan denne kigge på en visualisering af det målte EKG.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-5 col-md-3 col-lg-3">
+        <div class="card shadow-sm mt-4 mx-auto" style="width: 18rem;">
+            <img src="{{ url_for('static', filename='data.png') }}" class="card-img-top card-fixed-img" alt="Data" style="height: 200px; object-fit: cover;">
+            <div class="card-body">
+                <h5 class="card-title">Gennemgå data</h5>
+                <p class="card-text">
+                    Dataen som RytmeRov benytter sig af, til at lave en atrieflimren vurdering,
+                    er tilgængelig for lægen, hvis denne vil undersøge hvorfor en advarsel er blevet sendt.
+                </p>
             </div>
         </div>
     </div>

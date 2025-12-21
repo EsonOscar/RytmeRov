@@ -21,7 +21,7 @@ pepper = os.environ.get("CPR_PEPPER")
 
 # Take a raw ECG measurement and make it oh so beautiful
 # REWRITE TO TAKE A DECRYPTED SET OF LISTS INSTEAD OF FILE
-def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=10):
+def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=22):
     """
     Takes a raw unfiltered ECG measurement containing times in ms, ADC values, LOP and LOM (electrode contact)
     and filters it, to produce two clean output lists, t and adc.
@@ -64,6 +64,17 @@ def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=10):
     mask = (lom == 0) & (lop == 0)
     t  = t[mask]
     adc = adc[mask]
+    
+    # Remove the first 2 seconds of the measurement
+    # Stupid sensor is finicky right after startup
+    cut = t[0] + 2000
+    t = t - cut
+    time_mask = (t > 0)
+    #print(t)
+    t = t[time_mask]
+    adc = adc[time_mask]
+    
+    #print(t)
 
     # If all data rows are filtered out due to bad electrode contact, exit function
     if len(t) == 0 or len(adc) == 0:
@@ -81,9 +92,11 @@ def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=10):
         
         exit(1)
     
-
+    #print(f"ADC: {adc}")
     adc_mean = adc.mean()
+    #print(f"ADC MEAN: {adc_mean}")
     adc_detr = adc - adc_mean
+    #print(f"ADC_DETR: {adc_detr}")
 
     dt = np.diff(t_ms) / 1000.0 
 
