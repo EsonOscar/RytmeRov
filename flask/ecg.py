@@ -21,6 +21,7 @@ pepper = os.environ.get("CPR_PEPPER")
 
 # Take a raw ECG measurement and make it oh so beautiful
 # REWRITE TO TAKE A DECRYPTED SET OF LISTS INSTEAD OF FILE
+# Done, good job little Oscar
 def filter_raw_ecg(t, adc, lom, lop, start_time=0, stop_time=22):
     """
     Takes a raw unfiltered ECG measurement containing times in ms, ADC values, LOP and LOM (electrode contact)
@@ -141,7 +142,7 @@ def generate_graph(t_zoom, ecg_bp):
     return data
 
 # Try to detect R-peaks in a cleaned up ECG measurement
-def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
+def detect_r_peaks(t, adc, rf_sec=0.2, thresh_factor=5.0):
     """
     Takes a cleaned up ECG measurement and tries to detect the R peaks of the QRS complex.
     """
@@ -156,7 +157,9 @@ def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
         adc_centered.append(val - baseline)
     
     max_pos = max(adc_centered)
+    print(f"Max positive value: {max_pos}")
     max_neg = min(adc_centered)
+    print(f"Max negative value: {max_neg}")
     
     #print(max_pos, max_neg)
     
@@ -172,12 +175,13 @@ def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
         abs_vals.append(abs(val))
         
     noise_level = stats.median(abs_vals)
-    #print("Noise_level: ", noise_level)
+    print("Noise_level: ", noise_level)
     
     if noise_level == 0:
         noise_level = 0.000001
         
     threshold = thresh_factor * noise_level
+    print(f"Threshold: {threshold}")
     
     #print("Threshold: ", threshold)
     
@@ -198,7 +202,7 @@ def detect_r_peaks(t, adc, rf_sec=0.25, thresh_factor=10.0):
 
 
 # Final put together version, with data like HR, intervals etc. pretty cool good job Oscar
-def analyze_ecg(t, adc, rf_sec=0.25, thresh_factor=9):
+def analyze_ecg(t, adc, rf_sec=0.15, thresh_factor=5):
     #t, adc = filter_raw_ecg("recv_data.csv")
     
     if len(t) == 0:

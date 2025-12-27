@@ -483,18 +483,28 @@ def dashboard(cpr_hash):
         clean_data = ecg.filter_raw_ecg(t, adc, lom, lop)
         #print(clean_data)
         graph_data = ecg.generate_graph(clean_data[0], clean_data[1])
+        for i in range(len(t)):
+            t[i] = t[i] / 1000
+        graph2 = ecg.generate_graph(t, adc)
         #print(graph_data)
-        ecg_data = ecg.analyze_ecg(clean_data[0], clean_data[1])
-        for elem in ecg_data:
-            #print(ecg_data[elem])
-            if type(ecg_data[elem]) == list:
-                for i in range(len(ecg_data[elem])):
-                    ecg_data[elem][i] = round(float(ecg_data[elem][i]), 2)
-            else:
-                ecg_data[elem] = round(float(ecg_data[elem]), 2)
-        #print(ecg_data)    
+        ecg_res = ecg.analyze_ecg(clean_data[0], clean_data[1])
+        #print(ecg_res)
         
-        return render_template("dashboard_doctor.html", data=graph_data, ecg_data=ecg_data, cpr=decr_cpr, timestamp=timestamp, old_timestamps=old_timestamps)
+        if ecg_res:
+            for elem in ecg_res:
+                if not elem:
+                    break
+                #print(ecg_res[elem])
+                #print(elem)
+                if type(ecg_res[elem]) == list:
+                    for i in range(len(ecg_res[elem])):
+                        ecg_res[elem][i] = round(float(ecg_res[elem][i]), 2)
+                else:
+                    ecg_res[elem] = round(float(ecg_res[elem]), 2)
+            #print(ecg_data)
+        
+        
+        return render_template("dashboard_doctor.html", data=graph_data, data2=graph2 ,ecg_data=ecg_res, cpr=decr_cpr, timestamp=timestamp, old_timestamps=old_timestamps)
         
     else:
         # Forbidden
